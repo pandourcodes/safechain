@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "safechain",
+    "slug": "safechain",
+    "version": "1.0.0",
+    "plugins": [
+      "expo-audio"
+    ]
+  }
+}
