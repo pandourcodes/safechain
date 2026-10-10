@@ -1,10 +1,20 @@
 {
   "expo": {
-    "name": "safechain",
+    "name": "SafeChain",
     "slug": "safechain",
-    "version": "1.0.0",
-    "plugins": [
-      "expo-audio"
-    ]
+    "android": {
+  "package": "com.safechain.app",
+  "permissions": [
+    "ACCESS_FINE_LOCATION",
+    "ACCESS_COARSE_LOCATION",
+    "CAMERA",
+    "RECORD_AUDIO"
+  ]
+},
+    "extra": {
+      "eas": {
+        "projectId": "33ba1243-b911-4b33-848e-0b93b7f63ef0"
+      }
+    }
   }
 }

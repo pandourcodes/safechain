@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeChain Emergency Portal</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #090D16;
+      color: #F8FAFC;
+      padding: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Top Bar */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 14px;
+      padding: 14px 20px;
+      margin-bottom: 14px;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #EF4444;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-pill {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-active { background: #7F1D1D; color: #FCA5A5; border: 1px solid #991B1B; }
+    .status-resolved { background: #064E3B; color: #6EE7B7; border: 1px solid #047857; }
+
+    /* Telemetry Overview */
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .meta-item strong { color: #94A3B8; font-weight: 600; display: block; margin-bottom: 2px; }
+    .meta-item span { color: #F1F5F9; font-weight: 500; }
+
+    /* Map Box */
+    #map {
+      height: 280px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      border: 1px solid #1F2937;
+      background: #111827;
+    }
+
+    /* Emergency Services Panel */
+    .services-panel {
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .services-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .services-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F8FAFC;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .services-badge {
+      font-size: 10px;
+      background: #1F2937;
+      padding: 3px 8px;
+      border-radius: 12px;
+      color: #94A3B8;
+      font-weight: 700;
+    }
+    .services-sub {
+      font-size: 12px;
+      color: #94A3B8;
+      margin-bottom: 12px;
+    }
+    .services-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .service-btn {
+      flex: 1;
+      padding: 9px 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .service-btn:hover { opacity: 0.9; }
+    .service-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-police { background: #2563EB; color: #FFFFFF; }
+    .btn-hospital { background: #059669; color: #FFFFFF; }
+
+    .services-loading {
+      display: none;
+      font-size: 12px;
+      color: #38BDF8;
+      margin-bottom: 8px;
+    }
+    .services-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .service-card {
+      background: #0B1120;
+      border: 1px solid #1E293B;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .service-card-name {
+      font-weight: 700;
+      color: #F8FAFC;
+    }
+    .service-card-addr {
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 2px;
+    }
+    .service-card-phone {
+      font-size: 11px;
+      color: #38BDF8;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Tab Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      background: #111827;
+      color: #94A3B8;
+      border: 1px solid #1F2937;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease-in-out;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { background: #1F2937; color: #F8FAFC; }
+    .tab-btn.active {
+      background: #2563EB;
+      color: #FFFFFF;
+      border-color: #3B82F6;
+    }
+    .count-badge {
+      background: rgba(255, 255, 255, 0.15);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    /* Cards */
+    .card-list { display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 14px;
+      padding: 16px;
+      transition: border-color 0.15s;
+    }
+    .card:hover { border-color: #374151; }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .card-title-group { display: flex; align-items: center; gap: 8px; }
+    .card-icon { font-size: 15px; }
+    .card-title { font-size: 14px; font-weight: 700; color: #F8FAFC; }
+    .card-time { font-size: 12px; color: #64748B; font-weight: 600; }
+
+    .card-body { font-size: 13px; color: #CBD5E1; line-height: 1.6; }
+    .detail-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .detail-row span:first-child { color: #94A3B8; }
+
+    .evid-img {
+      width: 100%;
+      max-height: 440px;
+      object-fit: contain;
+      border-radius: 10px;
+      margin-top: 10px;
+      background: #000;
+      border: 1px solid #1F2937;
+    }
+
+    audio { width: 100%; margin-top: 10px; border-radius: 8px; }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #1E293B;
+      font-size: 11px;
+    }
+    .hash-val { font-family: ui-monospace, SFMono-Regular, monospace; color: #38BDF8; word-break: break-all; }
+    .verified-pill { color: #10B981; font-weight: 700; white-space: nowrap; margin-left: 10px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #64748B;
+      font-size: 14px;
+      background: #111827;
+      border: 1px dashed #1F2937;
+      border-radius: 14px;
+    }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD1-6tsu7YEXKw6AntvA7aphhkFlNQNOvE",
+      authDomain: "safechain-29eeb.firebaseapp.com",
+      projectId: "safechain-29eeb",
+      storageBucket: "safechain-29eeb.firebasestorage.app",
+      messagingSenderId: "776628980194",
+      appId: "1:776628980194:web:a026bb389ed14d76ce11bb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const incidentId = params.get('id');
+
+    let allEvidence = [];
+    let currentFilter = 'all';
+
+    // Global coordinate storage for Tinyfish lookups
+    window.currentCoords = { lat: 28.6139, lng: 77.2090 };
+
+    function base64ToBlobUrl(base64, mimeType = 'audio/mp4') {
+      try {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        return URL.createObjectURL(blob);
+      } catch (e) {
+        return `data:${mimeType};base64,${base64}`;
+      }
+    }
+
+    window.setFilter = function(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderEvidence();
+    };
+
+    function updateCounters() {
+      const counts = { all: allEvidence.length, photo: 0, audio: 0, location: 0, device: 0 };
+      allEvidence.forEach(item => {
+        if (counts[item.type] !== undefined) counts[item.type]++;
+      });
+      document.getElementById('cnt-all').innerText = counts.all;
+      document.getElementById('cnt-photo').innerText = counts.photo;
+      document.getElementById('cnt-audio').innerText = counts.audio;
+      document.getElementById('cnt-location').innerText = counts.location;
+      document.getElementById('cnt-device').innerText = counts.device;
+    }
+
+    function renderEvidence() {
+      const container = document.getElementById('evidenceContainer');
+      container.innerHTML = '';
+
+      const filtered = currentFilter === 'all' 
+        ? allEvidence 
+        : allEvidence.filter(e => e.type === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">No ${currentFilter === 'all' ? 'evidence' : currentFilter} logs recorded yet.</div>`;
+        return;
+      }
+
+      filtered.forEach((ev) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        let icon = '📄';
+        let bodyContent = '';
+
+        if (ev.type === 'location') {
+          icon = '📍';
+          bodyContent = `
+            <div class="card-body">
+              <div class="detail-row"><span>Address:</span><span>${ev.address || 'GPS Coordinate'}</span></div>
+              <div class="detail-row"><span>Coordinates:</span><span>${ev.lat}, ${ev.lng}</span></div>
+              <div class="detail-row"><span>Accuracy:</span><span>${ev.accuracy || '10 m'}</span></div>
+            </div>
+          `;
+        } else if (ev.type === 'device') {
+          icon = '📱';
+          bodyContent = `
+            <div class="card-body">
+              <div class="detail-row"><span>Device:</span><span>${ev.device}</span></div>
+              <div class="detail-row"><span>Battery Level:</span><span>${ev.battery}</span></div>
+              <div class="detail-row"><span>Operating System:</span><span>${ev.os}</span></div>
+              <div class="detail-row"><span>Network State:</span><span>${ev.network || 'Active'}</span></div>
+            </div>
+          `;
+        } else if (ev.type === 'photo') {
+          icon = '📸';
+          bodyContent = `
+            <div class="card-body">
+              <div class="detail-row"><span>Frame Resolution:</span><span>${ev.resolution || '720 × 1280'}</span></div>
+              ${ev.imageBase64 ? `<img class="evid-img" src="data:image/jpeg;base64,${ev.imageBase64}" />` : '<div style="margin-top:8px;color:#94A3B8;">(Image syncing...)</div>'}
+            </div>
+          `;
+        } else if (ev.type === 'audio') {
+          icon = '🎙️';
+          const blobUrl = ev.audioBase64 ? base64ToBlobUrl(ev.audioBase64, 'audio/mp4') : null;
+          bodyContent = `
+            <div class="card-body">
+              <div class="detail-row"><span>Buffer Duration:</span><span>${ev.duration || '0:10'}</span></div>
+              ${blobUrl ? `<audio controls preload="metadata" src="${blobUrl}"></audio>` : '<div style="margin-top:8px;color:#94A3B8;">(Audio syncing...)</div>'}
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="card-top">
+            <div class="card-title-group">
+              <span class="card-icon">${icon}</span>
+              <span class="card-title">${ev.title}</span>
+            </div>
+            <span class="card-time">${ev.time}</span>
+          </div>
+          ${bodyContent}
+          <div class="card-footer">
+            <span class="hash-val">SHA-256: ${ev.hash ? ev.hash.substring(0, 32) + '...' : '---'}</span>
+            <span class="verified-pill">✔ Immutable</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Nearby Services Trigger Function (Tinyfish Web Agent)
+    window.fetchNearbyServices = async function(type) {
+      const loadingEl = document.getElementById('servicesLoading');
+      const listEl = document.getElementById('servicesList');
+      const btnPolice = document.getElementById('btnPolice');
+      const btnHospital = document.getElementById('btnHospital');
+
+      loadingEl.style.display = 'block';
+      loadingEl.innerText = `🤖 Tinyfish agent querying nearest ${type === 'hospital' ? 'hospitals' : 'police stations'}...`;
+      listEl.innerHTML = '';
+      btnPolice.disabled = true;
+      btnHospital.disabled = true;
+
+      try {
+        const res = await fetch('/api/nearby-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat: window.currentCoords.lat,
+            lng: window.currentCoords.lng,
+            type: type
+          })
+        });
+
+        const data = await res.json();
+        loadingEl.style.display = 'none';
+        btnPolice.disabled = false;
+        btnHospital.disabled = false;
+
+        if (!data.facilities || data.facilities.length === 0) {
+          listEl.innerHTML = '<div style="color: #94A3B8; font-size: 12px;">No emergency facilities located for these coordinates.</div>';
+          return;
+        }
+
+        listEl.innerHTML = data.facilities.map(fac => `
+          <div class="service-card">
+            <div class="service-card-name">${fac.name || 'Emergency Facility'}</div>
+            <div class="service-card-addr">${fac.address || 'Address not listed'}</div>
+            ${fac.phone ? `<div class="service-card-phone">📞 ${fac.phone}</div>` : ''}
+          </div>
+        `).join('');
+      } catch (err) {
+        loadingEl.style.display = 'none';
+        btnPolice.disabled = false;
+        btnHospital.disabled = false;
+        listEl.innerHTML = '<div style="color: #EF4444; font-size: 12px;">Failed to query emergency services. Please try again.</div>';
+      }
+    };
+
+    if (!incidentId) {
+      document.getElementById('statusPill').innerText = 'NO ID';
+      document.getElementById('evidenceContainer').innerHTML = '<div class="empty-state">No Incident ID in URL parameter.</div>';
+    } else {
+      document.getElementById('incIdText').innerText = incidentId;
+
+      let map = null;
+      let marker = null;
+
+      function updateMap(lat, lng) {
+        window.currentCoords = { lat, lng };
+        if (!map) {
+          map = L.map('map').setView([lat, lng], 16);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+          marker = L.marker([lat, lng]).addTo(map).bindPopup("Current Position").openPopup();
+        } else {
+          marker.setLatLng([lat, lng]);
+          map.panTo([lat, lng]);
+        }
+      }
+
+      // Root Doc Observer
+      onSnapshot(doc(db, "incidents", incidentId), (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+
+        const pill = document.getElementById('statusPill');
+        pill.innerText = data.status || 'Active';
+        pill.className = `status-pill ${data.status === 'Resolved' ? 'status-resolved' : 'status-active'}`;
+
+        document.getElementById('deviceText').innerText = `${data.deviceModel || 'Mobile'} (${data.os || 'OS'})`;
+
+        if (data.liveLocation) {
+          document.getElementById('locText').innerText = data.liveLocation.address || `${data.liveLocation.latitude}, ${data.liveLocation.longitude}`;
+          updateMap(data.liveLocation.latitude, data.liveLocation.longitude);
+        }
+      });
+
+      // Subcollection Live Stream
+      onSnapshot(collection(db, "incidents", incidentId, "evidence"), (snapshot) => {
+        const items = [];
+        snapshot.forEach(docSnap => items.push(docSnap.data()));
+        items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        allEvidence = items;
+        updateCounters();
+        renderEvidence();
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="header-bar">
+    <div class="brand-title">🚨 SafeChain Emergency Incident</div>
+    <span class="status-pill status-active" id="statusPill">Connecting</span>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item">
+      <strong>Incident Reference</strong>
+      <span id="incIdText">---</span>
+    </div>
+    <div class="meta-item">
+      <strong>Source Hardware</strong>
+      <span id="deviceText">---</span>
+    </div>
+    <div class="meta-item" style="grid-column: 1 / -1;">
+      <strong>Current GPS Fix</strong>
+      <span id="locText">Triangulating location...</span>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Tinyfish Emergency Responders Panel -->
+  <div class="services-panel">
+    <div class="services-header">
+      <span class="services-title">📍 Nearby Emergency Responders</span>
+      <span class="services-badge">AI Agent</span>
+    </div>
+    <div class="services-sub">
+      Search closest responders based on live incident GPS coordinates.
+    </div>
+    <div class="services-actions">
+      <button id="btnPolice" class="service-btn btn-police" onclick="fetchNearbyServices('police')">
+        🚔 Police Stations
+      </button>
+      <button id="btnHospital" class="service-btn btn-hospital" onclick="fetchNearbyServices('hospital')">
+        🏥 Hospitals
+      </button>
+    </div>
+    <div id="servicesLoading" class="services-loading"></div>
+    <div id="servicesList" class="services-list"></div>
+  </div>
+
+  <!-- Category Filter Navigation -->
+  <div class="filter-bar">
+    <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">
+      All Evidence <span class="count-badge" id="cnt-all">0</span>
+    </button>
+    <button class="tab-btn" data-filter="photo" onclick="setFilter('photo')">
+      📸 Photos <span class="count-badge" id="cnt-photo">0</span>
+    </button>
+    <button class="tab-btn" data-filter="audio" onclick="setFilter('audio')">
+      🎙️ Audio <span class="count-badge" id="cnt-audio">0</span>
+    </button>
+    <button class="tab-btn" data-filter="location" onclick="setFilter('location')">
+      📍 Location <span class="count-badge" id="cnt-location">0</span>
+    </button>
+    <button class="tab-btn" data-filter="device" onclick="setFilter('device')">
+      📱 Device <span class="count-badge" id="cnt-device">0</span>
+    </button>
+  </div>
+
+  <div class="card-list" id="evidenceContainer"></div>
+</body>
+</html>

@@ -36,6 +36,7 @@ export default function SettingsScreen({ navigation }) {
   // Modal State for Adding Contact
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newContactName, setNewContactName] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelation, setNewContactRelation] = useState('');
 
@@ -100,8 +101,16 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleAddContact = async () => {
-    if (!newContactName.trim() || !newContactPhone.trim()) {
-      Alert.alert('Missing Info', 'Please enter both contact name and phone number.');
+    const trimmedName = newContactName.trim();
+    const trimmedEmail = newContactEmail.trim();
+
+    if (!trimmedName || !trimmedEmail) {
+      Alert.alert('Missing Info', 'Please enter contact name and a valid recipient email.');
+      return;
+    }
+
+    if (!trimmedEmail.includes('@')) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
@@ -109,7 +118,8 @@ export default function SettingsScreen({ navigation }) {
       ...contacts,
       {
         id: Date.now().toString(),
-        name: newContactName.trim(),
+        name: trimmedName,
+        email: trimmedEmail,
         phone: newContactPhone.trim(),
         relation: newContactRelation.trim() || 'Emergency Contact',
       },
@@ -119,6 +129,7 @@ export default function SettingsScreen({ navigation }) {
       await AsyncStorage.setItem(CONTACTS_KEY, JSON.stringify(updated));
       setContacts(updated);
       setNewContactName('');
+      setNewContactEmail('');
       setNewContactPhone('');
       setNewContactRelation('');
       setIsModalOpen(false);
@@ -273,7 +284,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.addSmallBtnText, { color: theme.primary }]}>+ Add Contact</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.sectionSub, { color: theme.textMuted }]}>These contacts receive emergency coordinates and alerts.</Text>
+        <Text style={[styles.sectionSub, { color: theme.textMuted }]}>These contacts receive emergency coordinates and live tracking portal emails.</Text>
 
         {contacts.length === 0 ? (
           <View style={styles.emptyContacts}>
@@ -288,7 +299,9 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.contactName, { color: theme.textDark }]}>{item.name}</Text>
-                <Text style={[styles.contactPhone, { color: theme.textMuted }]}>{item.phone} • {item.relation}</Text>
+                <Text style={[styles.contactPhone, { color: theme.textMuted }]}>
+                  {item.email || item.phone} • {item.relation}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => handleDeleteContact(item.id)} style={styles.deleteBtn}>
                 <Text style={{ color: theme.emergency, fontWeight: 'bold' }}>✕</Text>
@@ -307,13 +320,24 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.label, { color: theme.textMuted }]}>Contact Name</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.cardSubtle, borderColor: theme.border, color: theme.textDark }]}
-              placeholder="e.g. Sarah Hunter"
+              placeholder="e.g. Guardian / Control Desk"
               placeholderTextColor={theme.textMuted}
               value={newContactName}
               onChangeText={setNewContactName}
             />
 
-            <Text style={[styles.label, { color: theme.textMuted }]}>Phone Number</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>Alert Email Address</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.cardSubtle, borderColor: theme.border, color: theme.textDark }]}
+              placeholder="e.g. pandourcodes@gmail.com"
+              placeholderTextColor={theme.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={newContactEmail}
+              onChangeText={setNewContactEmail}
+            />
+
+            <Text style={[styles.label, { color: theme.textMuted }]}>Phone Number (Optional)</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.cardSubtle, borderColor: theme.border, color: theme.textDark }]}
               placeholder="e.g. +91 99999 88888"
