@@ -13,6 +13,7 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import EvidenceDetailScreen from './src/screens/EvidenceDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import SafeRouteModal from './src/components/SafeRouteModal';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

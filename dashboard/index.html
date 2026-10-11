@@ -48,6 +48,39 @@
     .status-active { background: #7F1D1D; color: #FCA5A5; border: 1px solid #991B1B; }
     .status-resolved { background: #064E3B; color: #6EE7B7; border: 1px solid #047857; }
 
+    /* Acknowledge Panel */
+    .ack-panel {
+      background: #111827;
+      border: 1px solid #1F2937;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .ack-text { font-size: 12px; color: #94A3B8; line-height: 1.5; }
+    .ack-text strong { color: #F8FAFC; display: block; font-size: 14px; margin-bottom: 2px; }
+    .ack-btn {
+      background: #16A34A;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .ack-btn:hover:not(:disabled) { opacity: 0.9; }
+    .ack-btn:disabled { background: #064E3B; color: #6EE7B7; cursor: default; }
+
     /* Telemetry Overview */
     .meta-grid {
       display: grid;
@@ -268,7 +301,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot, collection, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD1-6tsu7YEXKw6AntvA7aphhkFlNQNOvE",
@@ -402,6 +435,38 @@
       });
     }
 
+    // Trusted contact taps this once they've seen the incident. Writing
+    // acknowledged:true is what flips the "=" button green on the
+    // sender's disguised calculator.
+    window.acknowledgeIncident = async function() {
+      if (!incidentId) return;
+      const btn = document.getElementById('ackBtn');
+      btn.disabled = true;
+      btn.innerText = 'Sending…';
+      try {
+        await updateDoc(doc(db, 'incidents', incidentId), {
+          acknowledged: true,
+          acknowledgedAt: Date.now(),
+        });
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerText = '✔ Acknowledge';
+        alert('Could not send acknowledgement. Check your connection and try again.');
+      }
+    };
+
+    function applyAckState(data) {
+      if (!data.acknowledged) return;
+      const btn = document.getElementById('ackBtn');
+      const text = document.getElementById('ackText');
+      btn.disabled = true;
+      btn.innerText = '✔ Acknowledged';
+      const when = data.acknowledgedAt
+        ? new Date(data.acknowledgedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      text.innerHTML = `<strong>Acknowledged${when ? ' at ' + when : ''}</strong>The person in danger has been notified that help is on the way.`;
+    }
+
     // Nearby Services Trigger Function (Tinyfish Web Agent)
     window.fetchNearbyServices = async function(type) {
       const loadingEl = document.getElementById('servicesLoading');
@@ -454,6 +519,7 @@
     if (!incidentId) {
       document.getElementById('statusPill').innerText = 'NO ID';
       document.getElementById('evidenceContainer').innerHTML = '<div class="empty-state">No Incident ID in URL parameter.</div>';
+      document.getElementById('ackBtn').disabled = true;
     } else {
       document.getElementById('incIdText').innerText = incidentId;
 
@@ -487,6 +553,8 @@
           document.getElementById('locText').innerText = data.liveLocation.address || `${data.liveLocation.latitude}, ${data.liveLocation.longitude}`;
           updateMap(data.liveLocation.latitude, data.liveLocation.longitude);
         }
+
+        applyAckState(data);
       });
 
       // Subcollection Live Stream
@@ -505,6 +573,14 @@
   <div class="header-bar">
     <div class="brand-title">🚨 SafeChain Emergency Incident</div>
     <span class="status-pill status-active" id="statusPill">Connecting</span>
+  </div>
+
+  <div class="ack-panel">
+    <div class="ack-text" id="ackText">
+      <strong>Let them know you've seen this</strong>
+      Acknowledging silently lets the person know help is on the way.
+    </div>
+    <button class="ack-btn" id="ackBtn" onclick="acknowledgeIncident()">✔ Acknowledge</button>
   </div>
 
   <div class="meta-grid">

@@ -20,6 +20,7 @@ export default function CalculatorScreen({ navigation }) {
   // Dynamic PINs (Defaults: 9110 and 1337)
   const [sosPin, setSosPin] = useState('9110');
   const [unlockPin, setUnlockPin] = useState('1337');
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -41,6 +42,15 @@ export default function CalculatorScreen({ navigation }) {
       loadPins();
     }
   }, [isFocused]);
+
+  // Reflect dashboard acknowledgement: turns the = button green once a
+  // trusted contact has opened the incident link and tapped Acknowledge.
+  useEffect(() => {
+    const unsubscribe = evidenceEngine.subscribe(({ incident }) => {
+      setAcknowledged(!!incident?.acknowledged);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     async function initPerms() {
@@ -164,7 +174,9 @@ export default function CalculatorScreen({ navigation }) {
                 style={[
                   styles.btn,
                   btn === '0' && styles.zeroBtn,
-                  btn === '=' ? styles.equalsBtn : (['÷', '×', '-', '+'].includes(btn) ? styles.opBtn : styles.numBtn)
+                  btn === '='
+                    ? (acknowledged ? styles.equalsAcknowledged : styles.equalsBtn)
+                    : (['÷', '×', '-', '+'].includes(btn) ? styles.opBtn : styles.numBtn)
                 ]}
                 onPress={() => handlePress(btn)}
                 activeOpacity={0.7}
@@ -202,6 +214,7 @@ const styles = StyleSheet.create({
   numBtn: { backgroundColor: '#FFFFFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   opBtn: { backgroundColor: '#E2E8F0' },
   equalsBtn: { backgroundColor: COLORS.primary },
+  equalsAcknowledged: { backgroundColor: '#16A34A' },
   btnText: { fontSize: 26, fontWeight: '500', color: COLORS.textDark },
   equalsText: { color: '#FFFFFF', fontWeight: 'bold' }
 });

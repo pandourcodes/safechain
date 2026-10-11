@@ -4,7 +4,7 @@ import * as Battery from 'expo-battery';
 import * as Device from 'expo-device';
 import * as Crypto from 'expo-crypto';
 import * as ExpoAudio from 'expo-audio';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db, DASHBOARD_BASE_URL } from './firebaseConfig';
 import { uriToBase64, compressPhotoToBase64 } from './fileHelpers';
 import { EmailDispatcher } from './EmailDispatcher';
@@ -23,6 +23,7 @@ class EvidenceEngineService {
     this.photoTimerId = null;
     this.audioTimerId = null;
     this.telemetryTimerId = null;
+    this.incidentUnsub = null;
 
     this.cameraRef = null;
     this.isPhotoBusy = false;
@@ -143,6 +144,8 @@ class EvidenceEngineService {
       status: 'Active',
       deviceModel: Device.modelName || 'Android Device',
       os: `${Device.osName || 'Android'} ${Device.osVersion || '14'}`,
+      acknowledged: false,
+      acknowledgedAt: null,
     };
 
     this.notify();
@@ -152,6 +155,20 @@ class EvidenceEngineService {
       ...this.currentIncident,
       liveLocation: null,
     }).catch(e => console.warn('[Firestore] Root document error:', e));
+
+    // 1b. Listen for a trusted contact acknowledging the dashboard
+    if (this.incidentUnsub) {
+      this.incidentUnsub();
+    }
+    this.incidentUnsub = onSnapshot(doc(db, 'incidents', incidentId), (docSnap) => {
+      if (!docSnap.exists()) return;
+      const data = docSnap.data();
+      if (data.acknowledged && this.currentIncident && !this.currentIncident.acknowledged) {
+        this.currentIncident.acknowledged = true;
+        this.currentIncident.acknowledgedAt = data.acknowledgedAt || Date.now();
+        this.notify();
+      }
+    });
 
     // 2. Covert Emergency Email Dispatch (Silent Background Trigger)
     EmailDispatcher.sendEmergencyAlerts(incidentId, DASHBOARD_URL);
@@ -427,6 +444,11 @@ class EvidenceEngineService {
     if (this.photoTimerId) clearInterval(this.photoTimerId);
     if (this.audioTimerId) clearInterval(this.audioTimerId);
     if (this.telemetryTimerId) clearInterval(this.telemetryTimerId);
+
+    if (this.incidentUnsub) {
+      this.incidentUnsub();
+      this.incidentUnsub = null;
+    }
 
     this.stopAudio();
 

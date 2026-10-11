@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Vibration } from 'react-native';
 import { evidenceEngine } from '../services/EvidenceEngine';
 import { useTheme } from '../context/ThemeContext';
+import SafeRouteModal from '../components/SafeRouteModal';
 
 export default function HomeScreen({ navigation }) {
   const { theme } = useTheme();
-
+const [safeRouteVisible, setSafeRouteVisible] = useState(false);
   const [engineState, setEngineState] = useState({
     isActive: false,
     incident: null,
@@ -136,7 +137,25 @@ export default function HomeScreen({ navigation }) {
           </View>
           <Text style={[styles.cardLabel, { color: theme.textDark }]}>Disguised</Text>
         </TouchableOpacity>
+
+        {/* Safe Route AI */}
+        <TouchableOpacity
+          style={[styles.quickCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => setSafeRouteVisible(true)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.cardIconBox, { backgroundColor: theme.cardSubtle }]}>
+            <Text style={{ fontSize: 22 }}>🛡️</Text>
+          </View>
+          <Text style={[styles.cardLabel, { color: theme.textDark }]}>SafeRoute</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Safe Route Modal */}
+      <SafeRouteModal
+        visible={safeRouteVisible}
+        onClose={() => setSafeRouteVisible(false)}
+      />
     </ScrollView>
   );
 }
